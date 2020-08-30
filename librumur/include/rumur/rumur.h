@@ -20,7 +20,9 @@
 #include <rumur/resolve-symbols.h>
 #include <rumur/Rule.h>
 #include <rumur/scanner.h>
+#include <rumur/smt.h>
 #include <rumur/Stmt.h>
+#include <rumur/SymContext.h>
 #include <rumur/Symtab.h>
 #include <rumur/traverse.h>
 #include <rumur/TypeExpr.h>
