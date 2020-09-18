@@ -269,7 +269,7 @@ namespace { class Translator : public ConstTraversal {
 
 }; }
 
-void to_smt(std::ostream &out, const Expr &n, SMTContext &ctxt) {
+void to_smt(std::ostream &out, const Node &n, SMTContext &ctxt) {
   Translator t(out, ctxt);
   t.dispatch(n);
 }

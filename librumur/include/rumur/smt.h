@@ -80,9 +80,10 @@ class SMTContext {
 };
 
 // translate a given expression to SMTLIBv2
-void to_smt(std::ostream &out, const Expr &n, SMTContext &ctxt);
+void to_smt(std::ostream &out, const Node &n, SMTContext &ctxt);
 
-// wrapper around the above for when you do not need a long lived output buffer
+// wrapper around the above for when you want to translate an expression without
+// the sing and dance of a string stream
 std::string to_smt(const Expr &n, SMTContext &ctxt);
 
 }
