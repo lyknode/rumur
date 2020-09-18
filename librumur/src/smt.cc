@@ -4,10 +4,12 @@
 #include <rumur/Expr.h>
 #include <rumur/Node.h>
 #include <rumur/Number.h>
-#include <rumur/traverse.h>
 #include <rumur/smt.h>
+#include <rumur/Stmt.h>
+#include <rumur/traverse.h>
 #include <sstream>
 #include <string>
+#include "utils.h"
 
 namespace rumur {
 
@@ -139,6 +141,48 @@ std::string SMTContext::numeric_literal(const mpz_class &value,
   return value.get_str();
 }
 
+// unravel an lvalue to its leftmost component
+static const Expr &get_stump(const Expr &lvalue) {
+
+  // an lvalue can only be an identifier, record field, or array element (see
+  // parser.yy)
+
+  if (auto i = dynamic_cast<const Field*>(&lvalue)) {
+    // do we need to keep unraveling?
+    if (!isa<ExprID>(i->record))
+      return get_stump(*i->record);
+    return lvalue;
+  }
+
+  if (auto i = dynamic_cast<const Element*>(&lvalue)) {
+    // do we need to keep unraveling?
+    if (!isa<ExprID>(i->array))
+      return get_stump(*i->array);
+    return lvalue;
+  }
+
+  return lvalue;
+}
+
+// retrieve the originating ID of an lvalue
+static const ExprID &get_root(const Expr &lvalue) {
+
+  // an lvalue can only be an identifier, record field, or array element (see
+  // parser.yy)
+
+  if (auto i = dynamic_cast<const Field*>(&lvalue))
+    return get_root(*i->record);
+
+  if (auto i = dynamic_cast<const Element*>(&lvalue))
+    return get_root(*i->array);
+
+  if (auto i = dynamic_cast<const ExprID*>(&lvalue))
+    return *i;
+
+  throw Error("expression in lvalue is not an identifier, record field, or "
+    "array element", lvalue.loc);
+}
+
 namespace { class Translator : public ConstTraversal {
 
  private:
@@ -164,6 +208,45 @@ namespace { class Translator : public ConstTraversal {
 
   void visit_and(const And &n) {
     *this << "(and " << *n.lhs << " " << *n.rhs << ")";
+  }
+
+  void visit_assignment(const Assignment &n) {
+
+    // Translate the RHS, that we need to evaluate *before* the LHS. The RHS may
+    // contain an ID that is also the LHS, but the RHS needs to see the SMT
+    // symbol of the state before the assignment.
+    const std::string rhs = to_smt(*n.rhs, ctxt);
+
+    // find the root expression whose value we need to update
+    const Expr &stump = get_stump(*n.lhs);
+
+    // determine how to express an update to this entity
+
+    std::ostringstream buf;
+
+    if (auto i = dynamic_cast<const ExprID*>(&stump)) {
+      buf << rhs;
+
+    } else if (auto f = dynamic_cast<const Field*>(&stump)) {
+      buf << "(mk_TODO ...";
+
+    } else if (auto e = dynamic_cast<const Element*>(&stump)) {
+      const std::string array = to_smt(*e->array, ctxt);
+      const std::string index = to_smt(*e->index, ctxt);
+      buf << "(store " << array << " " << index << " " << rhs << ")";
+
+    } else {
+      throw Error("expression in lvalue is not an identifier, record field, or "
+        "array element", n.lhs->loc);
+    }
+
+    // find the left hand side of the stump
+    const ExprID &root = get_root(stump);
+
+    // invent a new name to store the updated value
+    const std::string fresh = ctxt.register_symbol(root.value->unique_id);
+
+    *this << "(assert (= " << fresh << " " << buf.str() << "))";
   }
 
   void visit_band(const Band &n) {
