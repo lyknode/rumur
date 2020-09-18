@@ -11,23 +11,15 @@
 
 namespace rumur {
 
-SMTContext::SMTContext() {
-  open_scope();
-}
+SMTContext::SMTContext() { }
 
-void SMTContext::open_scope() {
-  scope.push_back(std::unordered_map<size_t, std::string>{});
-}
-
-void SMTContext::close_scope() {
-  scope.pop_back();
-  // TODO: we probably need to record symbols somewhere
-}
+SMTContext::SMTContext(bool prefer_bitvectors_, size_t bitvector_width_)
+ : prefer_bitvectors(prefer_bitvectors_), bitvector_width(bitvector_width_) { }
 
 std::string SMTContext::register_symbol(size_t id) {
   // invent a new symbol and map this ID to it
   std::string s = make_symbol();
-  scope.back()[id] = s;
+  scope.emplace_back(id, s);
   return s;
 }
 
@@ -35,9 +27,8 @@ std::string SMTContext::lookup_symbol(size_t id, const Node &origin) const {
 
   // lookup the symbol in enclosing scopes from innermost to outermost
   for (auto it = scope.rbegin(); it != scope.rend(); ++it) {
-    auto it2 = it->find(id);
-    if (it2 != it->end())
-      return it2->second;
+    if (it->first == id)
+      return it->second;
   }
 
   // we expect any symbol encountered in a well-formed AST to be associated with

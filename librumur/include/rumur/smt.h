@@ -9,7 +9,7 @@
 #include <rumur/Node.h>
 #include <rumur/Number.h>
 #include <string>
-#include <unordered_map>
+#include <utility>
 #include <vector>
 
 namespace rumur {
@@ -26,8 +26,8 @@ class SMTContext {
   // bit width to use to represent numerical values if using bitvectors
   size_t bitvector_width = 64;
 
-  // stack of symbol tables, mapping AST unique IDs to external names
-  std::vector<std::unordered_map<size_t, std::string>> scope;
+  // stack of symbol table entries, mapping AST unique IDs to external names
+  std::vector<std::pair<size_t, std::string>> scope;
 
   // monotonic counter used for generating unique symbols
   size_t counter = 0;
@@ -35,10 +35,6 @@ class SMTContext {
  public:
   SMTContext();
   SMTContext(bool prefer_bitvectors_, size_t bitvector_width_);
-
-  // descend into or ascend from a variable scope
-  void open_scope();
-  void close_scope();
 
   /// add a new known symbol
   ///
