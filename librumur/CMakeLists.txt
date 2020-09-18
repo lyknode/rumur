@@ -72,7 +72,6 @@ add_library(librumur
   src/Rule.cc
   src/smt.cc
   src/Stmt.cc
-  src/SymContext.cc
   src/traverse.cc
   src/TypeExpr.cc
   src/validate.cc
