@@ -50,6 +50,17 @@ std::string SMTContext::make_type(const std::string &type) {
   return name;
 }
 
+std::string SMTContext::make_type(size_t id, const std::string &type) {
+
+  // create a name for this type
+  const std::string name = register_symbol(id);
+
+  // define the type
+  content << "(define-sort " << name << " () " << type << ")\n";
+
+  return name;
+}
+
 std::string SMTContext::make_symbol() {
   return "s" + std::to_string(counter++);
 }
@@ -426,6 +437,24 @@ namespace { class Translator : public ConstTraversal {
     const std::string lhs = eval(*n.lhs);
     const std::string rhs = eval(*n.rhs);
     *this << "(ite " << cond << " " << lhs << " " << rhs << ")";
+  }
+
+  void visit_typedecl(const TypeDecl &n) {
+
+    // ensure this type is defined
+    const std::string type = eval(*n.value);
+
+    // define this type
+    const std::string name = ctxt.make_type(n.unique_id, type);
+
+    // define a type guard corresponding to the inner type’s guard
+    const std::string inner_guard = get_type_guard(type);
+    const std::string guard = get_type_guard(name);
+    ctxt << "(define-fun " << guard << " ((x!1 " << name << ")) Bool ("
+      << inner_guard << " x!1))\n";
+
+    // pass the name we used back to any caller
+    *this << name;
   }
 
   void visit_xor(const Xor &n) {

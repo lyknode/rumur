@@ -60,10 +60,24 @@ class SMTContext {
 
   /// invent a new SMT type
   ///
+  /// This alternative is for defining an anonymous (unreferencable in Rumur)
+  /// type.
+  ///
   /// \param type The native (or previously defined) SMT type that this should
   ///   alias
   /// \return A unique name for this type
   std::string make_type(const std::string &type);
+
+  /// invent a new SMT type
+  ///
+  /// This alternative is for when the type being defined corresponds to a
+  /// referencable (named) Rumur AST node.
+  ///
+  /// \param id Unique identifier of the TypeDecl motivating this definition
+  /// \param type The native (or previously defined) SMT type that this should
+  ///   alias
+  /// \return A unique name for this type
+  std::string make_type(size_t id, const std::string &type);
 
   // various SMT operators whose selection is dependent on context
   std::string add (const Node &origin) const;
