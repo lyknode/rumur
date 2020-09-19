@@ -367,6 +367,17 @@ namespace { class Translator : public ConstTraversal {
     *this << "(" << ctxt.mod(n) << " " << lhs << " " << rhs << ")";
   }
 
+  // I cannot imagine any use case for doing a one-shot translation of an entire
+  // model to SMT, but see no reason to prevent the user doing this if they come
+  // up with a need for it
+  void visit_model(const Model &n) {
+    for (const Ptr<Node> &c : n.children) {
+      // use eval() here because we do not care about any returned constructions
+      // and want to discard them
+      (void)eval(*c);
+    }
+  }
+
   void visit_mul(const Mul &n) {
     const std::string lhs = eval(*n.lhs);
     const std::string rhs = eval(*n.rhs);
