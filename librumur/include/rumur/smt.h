@@ -5,7 +5,6 @@
 
 #include <cstddef>
 #include <gmpxx.h>
-#include <rumur/Expr.h>
 #include <rumur/Node.h>
 #include <rumur/Number.h>
 #include <sstream>
@@ -95,8 +94,7 @@ class SMTContext {
 // translate a given expression to SMTLIBv2
 void to_smt(std::ostream &out, const Node &n, SMTContext &ctxt);
 
-// wrapper around the above for when you want to translate an expression without
-// the sing and dance of a string stream
-std::string to_smt(const Expr &n, SMTContext &ctxt);
+// wrapper around the above for when you need a string
+std::string to_smt(const Node &n, SMTContext &ctxt);
 
 }

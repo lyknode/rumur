@@ -207,28 +207,28 @@ static std::string get_type_guard(const std::string &type) {
 namespace { class Translator : public ConstTraversal {
 
  private:
-  std::ostream &out;
   SMTContext &ctxt;
 
+  // buffer used for returning a string from a visitation function (see eval())
+  std::ostringstream ret;
+
  public:
-  Translator(std::ostream &out_, SMTContext &ctxt_): out(out_), ctxt(ctxt_) { }
+  Translator(SMTContext &ctxt_): ctxt(ctxt_) { }
 
-  Translator &operator<<(const std::string &s) {
-    out << s;
-    return *this;
-  }
-
-  Translator &operator<<(const Expr &e) {
-    dispatch(e);
-    return *this;
+  std::string str() const {
+    return ret.str();
   }
 
   void visit_add(const Add &n) {
-    *this << "(" << ctxt.add(n) << " " << *n.lhs << " " << *n.rhs << ")";
+    const std::string lhs = eval(*n.lhs);
+    const std::string rhs = eval(*n.rhs);
+    *this << "(" << ctxt.add(n) << " " << lhs << " " << rhs << ")";
   }
 
   void visit_and(const And &n) {
-    *this << "(and " << *n.lhs << " " << *n.rhs << ")";
+    const std::string lhs = eval(*n.lhs);
+    const std::string rhs = eval(*n.rhs);
+    *this << "(and " << lhs << " " << rhs << ")";
   }
 
   void visit_assignment(const Assignment &n) {
@@ -236,7 +236,7 @@ namespace { class Translator : public ConstTraversal {
     // Translate the RHS, that we need to evaluate *before* the LHS. The RHS may
     // contain an ID that is also the LHS, but the RHS needs to see the SMT
     // symbol of the state before the assignment.
-    const std::string rhs = to_smt(*n.rhs, ctxt);
+    const std::string rhs = eval(*n.rhs);
 
     // find the root expression whose value we need to update
     const Expr &stump = get_stump(*n.lhs);
@@ -252,8 +252,8 @@ namespace { class Translator : public ConstTraversal {
       buf << "(mk_TODO ...";
 
     } else if (auto e = dynamic_cast<const Element*>(&stump)) {
-      const std::string array = to_smt(*e->array, ctxt);
-      const std::string index = to_smt(*e->index, ctxt);
+      const std::string array = eval(*e->array);
+      const std::string index = eval(*e->index);
       buf << "(store " << array << " " << index << " " << rhs << ")";
 
     } else {
@@ -267,23 +267,30 @@ namespace { class Translator : public ConstTraversal {
     // invent a new name to store the updated value
     const std::string fresh = ctxt.register_symbol(root.value->unique_id);
 
-    ctxt << "(assert (= " << fresh << " " << buf.str() << "))";
+    ctxt << "(assert (= " << fresh << " " << buf.str() << "))\n";
   }
 
   void visit_band(const Band &n) {
-    *this << "(" << ctxt.band(n) << " " << *n.lhs << " " << *n.rhs << ")";
+    const std::string lhs = eval(*n.lhs);
+    const std::string rhs = eval(*n.rhs);
+    *this << "(" << ctxt.band(n) << " " << lhs << " " << rhs << ")";
   }
 
   void visit_bnot(const Bnot &n) {
-    *this << "(" << ctxt.bnot(n) << " " << *n.rhs << ")";
+    const std::string rhs = eval(*n.rhs);
+    *this << "(" << ctxt.bnot(n) << " " << rhs << ")";
   }
 
   void visit_bor(const Bor &n) {
-    *this << "(" << ctxt.bor(n) << " " << *n.lhs << " " << *n.rhs << ")";
+    const std::string lhs = eval(*n.lhs);
+    const std::string rhs = eval(*n.rhs);
+    *this << "(" << ctxt.bor(n) << " " << lhs << " " << rhs << ")";
   }
 
   void visit_element(const Element &n) {
-    *this << "(select " << *n.array << " " << *n.index << ")";
+    const std::string array = eval(*n.array);
+    const std::string index = eval(*n.index);
+    *this << "(select " << array << " " << index << ")";
   }
 
   void visit_exprid(const ExprID &n) {
@@ -291,23 +298,33 @@ namespace { class Translator : public ConstTraversal {
   }
 
   void visit_eq(const Eq &n) {
-    *this << "(= " << *n.lhs << " " << *n.rhs << ")";
+    const std::string lhs = eval(*n.lhs);
+    const std::string rhs = eval(*n.rhs);
+    *this << "(= " << lhs << " " << rhs << ")";
   }
 
   void visit_div(const Div &n) {
-    *this << "(" << ctxt.div(n) << " " << *n.lhs << " " << *n.rhs << ")";
+    const std::string lhs = eval(*n.lhs);
+    const std::string rhs = eval(*n.rhs);
+    *this << "(" << ctxt.div(n) << " " << lhs << " " << rhs << ")";
   }
 
   void visit_geq(const Geq &n) {
-    *this << "(" << ctxt.geq(n) << " " << *n.lhs << " " << *n.rhs << ")";
+    const std::string lhs = eval(*n.lhs);
+    const std::string rhs = eval(*n.rhs);
+    *this << "(" << ctxt.geq(n) << " " << lhs << " " << rhs << ")";
   }
 
   void visit_gt(const Gt &n) {
-    *this << "(" << ctxt.gt(n) << " " << *n.lhs << " " << *n.rhs << ")";
+    const std::string lhs = eval(*n.lhs);
+    const std::string rhs = eval(*n.rhs);
+    *this << "(" << ctxt.gt(n) << " " << lhs << " " << rhs << ")";
   }
 
   void visit_implication(const Implication &n) {
-    *this << "(=> " << *n.lhs << " " << *n.rhs << ")";
+    const std::string lhs = eval(*n.lhs);
+    const std::string rhs = eval(*n.rhs);
+    *this << "(=> " << lhs << " " << rhs << ")";
   }
 
   void visit_isundefined(const IsUndefined &n) {
@@ -316,31 +333,44 @@ namespace { class Translator : public ConstTraversal {
   }
 
   void visit_leq(const Leq &n) {
-    *this << "(" << ctxt.leq(n) << " " << *n.lhs << " " << *n.rhs << ")";
+    const std::string lhs = eval(*n.lhs);
+    const std::string rhs = eval(*n.rhs);
+    *this << "(" << ctxt.leq(n) << " " << lhs << " " << rhs << ")";
   }
 
   void visit_lsh(const Lsh &n) {
-    *this << "(" << ctxt.lsh(n) << " " << *n.lhs << " " << *n.rhs << ")";
+    const std::string lhs = eval(*n.lhs);
+    const std::string rhs = eval(*n.rhs);
+    *this << "(" << ctxt.lsh(n) << " " << lhs << " " << rhs << ")";
   }
 
   void visit_lt(const Lt &n) {
-    *this << "(" << ctxt.lt(n) << " " << *n.lhs << " " << *n.rhs << ")";
+    const std::string lhs = eval(*n.lhs);
+    const std::string rhs = eval(*n.rhs);
+    *this << "(" << ctxt.lt(n) << " " << lhs << " " << rhs << ")";
   }
 
   void visit_mod(const Mod &n) {
-    *this << "(" << ctxt.mod(n) << " " << *n.lhs << " " << *n.rhs << ")";
+    const std::string lhs = eval(*n.lhs);
+    const std::string rhs = eval(*n.rhs);
+    *this << "(" << ctxt.mod(n) << " " << lhs << " " << rhs << ")";
   }
 
   void visit_mul(const Mul &n) {
-    *this << "(" << ctxt.mul(n) << " " << *n.lhs << " " << *n.rhs << ")";
+    const std::string lhs = eval(*n.lhs);
+    const std::string rhs = eval(*n.rhs);
+    *this << "(" << ctxt.mul(n) << " " << lhs << " " << rhs << ")";
   }
 
   void visit_negative(const Negative &n) {
-    *this << "(" << ctxt.neg(n) << " " << *n.rhs << ")";
+    const std::string rhs = eval(*n.rhs);
+    *this << "(" << ctxt.neg(n) << " " << rhs << ")";
   }
 
   void visit_neq(const Neq &n) {
-    *this << "(not (= " << *n.lhs << " " << *n.rhs << "))";
+    const std::string lhs = eval(*n.lhs);
+    const std::string rhs = eval(*n.rhs);
+    *this << "(not (= " << lhs << " " << rhs << "))";
   }
 
   void visit_number(const Number &n) {
@@ -348,18 +378,21 @@ namespace { class Translator : public ConstTraversal {
   }
 
   void visit_not(const Not &n) {
-    *this << "(not " << *n.rhs << ")";
+    const std::string rhs = eval(*n.rhs);
+    *this << "(not " << rhs << ")";
   }
 
   void visit_or(const Or &n) {
-    *this << "(or " << *n.lhs << " " << *n.rhs << ")";
+    const std::string lhs = eval(*n.lhs);
+    const std::string rhs = eval(*n.rhs);
+    *this << "(or " << lhs << " " << rhs << ")";
   }
 
   void visit_range(const Range &n) {
 
     // construct the bounds of this range
-    const std::string min = to_smt(*n.min, ctxt);
-    const std::string max = to_smt(*n.max, ctxt);
+    const std::string min = eval(*n.min);
+    const std::string max = eval(*n.max);
 
     // define this type
     const std::string tid = ctxt.make_type("Int");
@@ -377,32 +410,63 @@ namespace { class Translator : public ConstTraversal {
   }
 
   void visit_rsh(const Rsh &n) {
-    *this << "(" << ctxt.rsh(n) << " " << *n.lhs << " " << *n.rhs << ")";
+    const std::string lhs = eval(*n.lhs);
+    const std::string rhs = eval(*n.rhs);
+    *this << "(" << ctxt.rsh(n) << " " << lhs << " " << rhs << ")";
   }
 
   void visit_sub(const Sub &n) {
-    *this << "(" << ctxt.sub(n) << " " << *n.lhs << " " << *n.rhs << ")";
+    const std::string lhs = eval(*n.lhs);
+    const std::string rhs = eval(*n.rhs);
+    *this << "(" << ctxt.sub(n) << " " << lhs << " " << rhs << ")";
   }
 
   void visit_ternary(const Ternary &n) {
-    *this << "(ite " << *n.cond << " " << *n.lhs << " " << *n.rhs << ")";
+    const std::string cond = eval(*n.cond);
+    const std::string lhs = eval(*n.lhs);
+    const std::string rhs = eval(*n.rhs);
+    *this << "(ite " << cond << " " << lhs << " " << rhs << ")";
   }
 
   void visit_xor(const Xor &n) {
-    *this << "(" << ctxt.bxor(n) << " " << *n.lhs << " " << *n.rhs << ")";
+    const std::string lhs = eval(*n.lhs);
+    const std::string rhs = eval(*n.rhs);
+    *this << "(" << ctxt.bxor(n) << " " << lhs << " " << rhs << ")";
+  }
+
+ private:
+  Translator &operator<<(const std::string &s) {
+    ret << s;
+    return *this;
+  }
+
+  // encapsulate visiting a Node and extracting a returned string
+  std::string eval(const Node &n) {
+
+    // the ret buffer is not expected to be used across multiple visitation
+    // calls
+    assert(ret.str() == "");
+
+    // visit the node
+    dispatch(n);
+
+    // extract the result of this visitation
+    const std::string r = ret.str();
+    ret.str("");
+
+    return r;
   }
 
 }; }
 
 void to_smt(std::ostream &out, const Node &n, SMTContext &ctxt) {
-  Translator t(out, ctxt);
-  t.dispatch(n);
+  out << to_smt(n, ctxt);
 }
 
-std::string to_smt(const Expr &n, SMTContext &ctxt) {
-  std::ostringstream buf;
-  to_smt(buf, n, ctxt);
-  return buf.str();
+std::string to_smt(const Node &n, SMTContext &ctxt) {
+  Translator t(ctxt);
+  t.dispatch(n);
+  return t.str();
 }
 
 }
