@@ -267,7 +267,7 @@ namespace { class Translator : public ConstTraversal {
     // invent a new name to store the updated value
     const std::string fresh = ctxt.register_symbol(root.value->unique_id);
 
-    *this << "(assert (= " << fresh << " " << buf.str() << "))";
+    ctxt << "(assert (= " << fresh << " " << buf.str() << "))";
   }
 
   void visit_band(const Band &n) {
