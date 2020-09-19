@@ -8,6 +8,7 @@
 #include <rumur/Expr.h>
 #include <rumur/Node.h>
 #include <rumur/Number.h>
+#include <sstream>
 #include <string>
 #include <utility>
 #include <vector>
@@ -32,6 +33,9 @@ class SMTContext {
   // monotonic counter used for generating unique symbols
   size_t counter = 0;
 
+  // accrued SMTLIB problem
+  std::ostringstream content;
+
  public:
   SMTContext();
   SMTContext(bool prefer_bitvectors_, size_t bitvector_width_);
@@ -55,6 +59,13 @@ class SMTContext {
   /// \return The unique name this symbol maps to
   std::string lookup_symbol(size_t id, const Node &origin) const;
 
+  /// invent a new SMT type
+  ///
+  /// \param type The native (or previously defined) SMT type that this should
+  ///   alias
+  /// \return A unique name for this type
+  std::string make_type(const std::string &type);
+
   // various SMT operators whose selection is dependent on context
   std::string add (const Node &origin) const;
   std::string band(const Node &origin) const;
@@ -73,6 +84,8 @@ class SMTContext {
   std::string rsh (const Node &origin) const;
   std::string sub (const Node &origin) const;
   std::string numeric_literal(const mpz_class &value, const Number &origin) const;
+
+  SMTContext &operator<<(const std::string &s);
 
  private:
   std::string make_symbol();

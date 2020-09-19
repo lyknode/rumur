@@ -39,6 +39,17 @@ std::string SMTContext::lookup_symbol(size_t id, const Node &origin) const {
     "unvalidated AST?", origin.loc);
 }
 
+std::string SMTContext::make_type(const std::string &type) {
+
+  // create a name for this type
+  const std::string name = make_symbol();
+
+  // define the type
+  content << "(define-sort " << name << " () " << type << ")\n";
+
+  return name;
+}
+
 std::string SMTContext::make_symbol() {
   return "s" + std::to_string(counter++);
 }
@@ -141,6 +152,11 @@ std::string SMTContext::numeric_literal(const mpz_class &value,
   return value.get_str();
 }
 
+SMTContext &SMTContext::operator<<(const std::string &s) {
+  content << s;
+  return *this;
+}
+
 // unravel an lvalue to its leftmost component
 static const Expr &get_stump(const Expr &lvalue) {
 
@@ -181,6 +197,11 @@ static const ExprID &get_root(const Expr &lvalue) {
 
   throw Error("expression in lvalue is not an identifier, record field, or "
     "array element", lvalue.loc);
+}
+
+// name mangling for a type guard function
+static std::string get_type_guard(const std::string &type) {
+  return "in_type_" + type;
 }
 
 namespace { class Translator : public ConstTraversal {
@@ -332,6 +353,27 @@ namespace { class Translator : public ConstTraversal {
 
   void visit_or(const Or &n) {
     *this << "(or " << *n.lhs << " " << *n.rhs << ")";
+  }
+
+  void visit_range(const Range &n) {
+
+    // construct the bounds of this range
+    const std::string min = to_smt(*n.min, ctxt);
+    const std::string max = to_smt(*n.max, ctxt);
+
+    // define this type
+    const std::string tid = ctxt.make_type("Int");
+
+    // generate a name to use for the predicate for a value in this type
+    const std::string guard = get_type_guard(tid);
+
+    ctxt
+      << "(define-fun " << guard << " ((x!1 " << tid << ")) Bool (and "
+        << "(" << ctxt.geq(n) << " x!1 " << min << ") "
+        << "(" << ctxt.leq(n) << " x!1 " << max << ")))\n";
+
+    // pass the name we used back any caller
+    *this << tid;
   }
 
   void visit_rsh(const Rsh &n) {
