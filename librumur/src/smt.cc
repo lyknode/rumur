@@ -457,6 +457,26 @@ namespace { class Translator : public ConstTraversal {
     *this << name;
   }
 
+  void visit_vardecl(const VarDecl &n) {
+
+    // TODO: the below logic won't work for VarDecls that represent record
+    // fields
+
+    // mint a new name for this declaration
+    const std::string name = ctxt.register_symbol(n.unique_id);
+
+    // establish the type of this variable
+    const std::string type = eval(*n.type);
+    const std::string guard = get_type_guard(type);
+
+    // declare the variable and its constraints
+    ctxt << "(declare-fun " << name << " () " << type << ")\n"
+         << "(assert (" << guard << " " << name << "))\n";
+
+    // pass the name we used back to any caller
+    *this << name;
+  }
+
   void visit_xor(const Xor &n) {
     const std::string lhs = eval(*n.lhs);
     const std::string rhs = eval(*n.rhs);
